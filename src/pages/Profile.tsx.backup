@@ -1,0 +1,640 @@
+import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { Badge } from '../components/ui/badge'
+import { Upload, Phone, Mail, User as UserIcon, Briefcase } from 'lucide-react'
+import { useSupabaseAuthStore } from '../store/supabaseAuthStore'
+import { toast } from 'sonner'
+
+const Profile = () => {
+  const { user, updateProfile } = useSupabaseAuthStore()
+  const isAdmin = user?.role === 'admin'
+  
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+    specialty: user?.specialty || '',
+    avatar: user?.avatar || '',
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    
+    
+    // Atualizar o perfil no Supabase e no store
+    await updateProfile({
+      name: formData.name,
+      phone: formData.phone,
+      specialty: formData.specialty,
+      avatar: formData.avatar,
+    })
+    
+    
+  }
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validar tipo de arquivo
+      if (!file.type.startsWith('image/')) {
+        toast.error('Por favor, selecione uma imagem válida')
+        return
+      }
+      
+      // Validar tamanho (máx 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('A imagem deve ter no máximo 2MB')
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const newAvatar = reader.result as string
+        setFormData({ ...formData, avatar: newAvatar })
+        
+        // Atualizar imediatamente no store para refletir no header/sidebar
+        updateProfile({ avatar: newAvatar })
+        
+        // Se o usuário tem perfil de barbeiro, sincronizar também
+        if (user?.barber_profile_id) {
+          syncUserProfileToBarber(user.barber_profile_id, {
+            name: user.name,
+            avatar: newAvatar,
+            phone: user.phone,
+            specialty: user.specialty,
+          })
+        }
+        
+        toast.success('Foto atualizada com sucesso!')
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // const handleBarberAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0]
+  //   if (file) {
+  //     if (!file.type.startsWith('image/')) {
+  //       toast.error('Por favor, selecione uma imagem válida')
+  //       return
+  //     }
+  //     
+  //     if (file.size > 2 * 1024 * 1024) {
+  //       toast.error('A imagem deve ter no máximo 2MB')
+  //       return
+  //     }
+
+  //     const reader = new FileReader()
+  //     reader.onloadend = () => {
+  //       setBarberProfile({ ...barberProfile, barberAvatar: reader.result as string })
+  //       toast.success('Foto do perfil de barbeiro atualizada!')
+  //     }
+  //     reader.readAsDataURL(file)
+  //   }
+  // }
+
+  const toggleBarberProfile = async () => {
+    if (!user) {
+      toast.error('Usuário não encontrado')
+      return
+    }
+
+    
+    
+    
+    // Buscar o usuário real no banco de dados pelo email para garantir o ID correto
+    
+    const { data: realUser, error: userError } = await supabase
+      .from('users')
+      .select('id, name, email, role, barber_profile_id')
+      .eq('email', user.email)
+      .single()
+    
+    if (userError || !realUser) {
+      
+      toast.error('Usuário não encontrado no banco de dados')
+      return
+    }
+    
+    
+    const userId = realUser.id // Usar o ID real do banco
+
+    try {
+      const newEnabled = !barberProfile.enabled
+      
+      
+      if (newEnabled) {
+        
+        
+        // Primeiro, verificar se já existe um perfil
+        
+        const { data: existingProfile, error: fetchError } = await supabase
+          .from('barber_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle() // Usar maybeSingle em vez de single
+
+        if (fetchError) {
+          
+          toast.error(`Erro ao verificar perfil: ${fetchError.message}`)
+          return
+        }
+
+        
+
+        if (existingProfile) {
+          
+          // Perfil existe, apenas ativar
+          const { error: updateError } = await supabase
+            .from('barber_profiles')
+            .update({ 
+              is_active: true,
+              name: user.name,
+              phone: user.phone || null,
+              email: user.email || null,
+              specialty: user.specialty || 'Cortes em geral',
+              avatar: user.avatar || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingProfile.id)
+
+          if (updateError) {
+            
+            toast.error(`Erro ao ativar perfil: ${updateError.message}`)
+            return
+          }
+
+          
+          
+          // Atualizar user com barber_profile_id
+          
+          try {
+            await updateProfile({ barber_profile_id: existingProfile.id })
+            
+          } catch (updateUserError) {
+            
+            // Não falhar aqui, o perfil já foi criado
+          }
+          
+          toast.success('Perfil de barbeiro ativado!')
+        } else {
+          
+          
+          // Criar perfil de barbeiro usando dados do admin
+          const newProfileData = {
+            user_id: userId,
+            name: formData.name || realUser.name,
+            phone: formData.phone || null,
+            email: realUser.email,
+            specialty: formData.specialty || 'Cortes em geral',
+            avatar: formData.avatar || null,
+            bio: null,
+            is_active: true,
+            experience_years: 1,
+            rating: 5.0,
+            total_reviews: 0,
+            commission_rate: 50.0
+          }
+
+          
+
+          // Tentar inserir usando supabase client com configuração específica
+          
+          
+          let { data: newProfile, error: createError } = await supabase
+            .from('barber_profiles')
+            .insert(newProfileData)
+            .select()
+            .single()
+
+          if (createError) {
+            toast.error(`Erro ao criar perfil: ${createError.message}`)
+            
+            // Tentar uma abordagem alternativa - inserir sem retornar dados
+            
+            const { error: insertError } = await supabase
+              .from('barber_profiles')
+              .insert(newProfileData)
+            
+            if (insertError) {
+              
+              toast.error(`Erro ao criar perfil: ${insertError.message}`)
+              return
+            }
+            
+            // Se inserção funcionou, buscar o perfil criado
+            
+            const { data: foundProfile, error: findError } = await supabase
+              .from('barber_profiles')
+              .select('*')
+              .eq('user_id', userId)
+              .single()
+            
+            if (findError || !foundProfile) {
+              
+              toast.error('Perfil pode ter sido criado, mas não foi possível confirmar')
+              return
+            }
+            
+            
+            // Usar o perfil encontrado
+            newProfile = foundProfile
+          } else {
+            // Perfil criado com sucesso
+          }
+
+          // Atualizar user com barber_profile_id
+          
+          try {
+            await updateProfile({ barber_profile_id: newProfile.id })
+            
+          } catch (updateUserError) {
+            
+            // Não falhar aqui, o perfil já foi criado
+          }
+          
+          toast.success('Perfil de barbeiro criado e ativado!')
+        }
+
+        // Registrar log
+        try {
+          const { logUser } = await import('../utils/logger')
+          await logUser.update(realUser.name, userId, 'Perfil de barbeiro ativado')
+          
+        } catch (logError) {
+          
+          // Não falhar por causa do log
+        }
+
+      } else {
+        
+        // Desativar perfil de barbeiro
+        if (realUser.barber_profile_id) {
+          const { error: deactivateError } = await supabase
+            .from('barber_profiles')
+            .update({ 
+              is_active: false,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', realUser.barber_profile_id)
+
+          if (deactivateError) {
+            
+            toast.error(`Erro ao desativar perfil: ${deactivateError.message}`)
+            return
+          }
+
+          
+          toast.info('Perfil de barbeiro desativado')
+
+          // Registrar log
+          try {
+            const { logUser } = await import('../utils/logger')
+            await logUser.update(realUser.name, userId, 'Perfil de barbeiro desativado')
+          } catch (logError) {
+            
+          }
+        } else {
+          
+          toast.info('Perfil de barbeiro desativado')
+        }
+      }
+
+      setBarberProfile({ ...barberProfile, enabled: newEnabled })
+      
+      
+    } catch (error) {
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      toast.error(`Erro interno: ${errorMessage}`)
+    }
+  }
+
+  // Calculate barber stats
+  const barberAppointments = appointments.filter(
+    (apt) => apt.barberId === user?.barber_profile_id && apt.status === 'completed'
+  )
+
+  const totalRevenue = barberAppointments.reduce((sum, apt) => {
+    const service = services.find((s) => s.id === apt.serviceId)
+    return sum + (service?.price || 0)
+  }, 0)
+
+  const serviceCount = barberAppointments.reduce((acc, apt) => {
+    const serviceName = services.find((s) => s.id === apt.serviceId)?.name || ''
+    acc[serviceName] = (acc[serviceName] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const mostPopularService = Object.entries(serviceCount).sort(
+    ([, a], [, b]) => b - a
+  )[0]?.[0] || 'N/A'
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Perfil</h2>
+          <p className="text-gray-500 mt-1">Gerencie suas informações pessoais e profissionais</p>
+        </div>
+        <Badge variant={isAdmin ? "default" : "secondary"} className="text-sm px-3 py-1">
+          {isAdmin ? (
+            <><Shield className="h-4 w-4 mr-1 inline" /> Administrador</>
+          ) : (
+            <><Scissors className="h-4 w-4 mr-1 inline" /> Barbeiro</>
+          )}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Profile Form */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Foto e Informações Básicas */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Foto do Perfil</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
+                <div className="relative">
+                  <img
+                    key={formData.avatar} // Força re-render quando a foto muda
+                    src={formData.avatar || user?.avatar || 'https://via.placeholder.com/150'}
+                    alt={user?.name}
+                    className="h-32 w-32 rounded-full object-cover border-4 border-gray-200 transition-all duration-300"
+                    onError={(e) => {
+                      // Fallback se a imagem não carregar
+                      e.currentTarget.src = 'https://via.placeholder.com/150'
+                    }}
+                  />
+                  <label
+                    htmlFor="avatar-upload"
+                    className="absolute bottom-0 right-0 bg-primary text-white rounded-full p-3 cursor-pointer hover:bg-primary/90 shadow-lg transition-all"
+                  >
+                    <Upload className="h-5 w-5" />
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                  </label>
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-2xl font-bold">{user?.name}</h3>
+                  <p className="text-gray-500 flex items-center justify-center md:justify-start mt-1">
+                    <Mail className="h-4 w-4 mr-2" />
+                    {user?.email}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Clique no ícone para fazer upload de uma nova foto (máx. 2MB)
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Informações Pessoais */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações Pessoais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Nome Completo *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">
+                      <Phone className="h-4 w-4 inline mr-1" />
+                      Telefone *
+                    </Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      placeholder="(11) 99999-9999"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="email">
+                      <Mail className="h-4 w-4 inline mr-1" />
+                      Email
+                    </Label>
+                    <Input id="email" value={user?.email} disabled />
+                    <p className="text-xs text-gray-500 mt-1">
+                      O email não pode ser alterado
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="birthDate">
+                      <Calendar className="h-4 w-4 inline mr-1" />
+                      Data de Nascimento
+                    </Label>
+                    <Input
+                      id="birthDate"
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) =>
+                        setFormData({ ...formData, birthDate: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                {!isAdmin && (
+                  <div>
+                    <Label htmlFor="specialty">
+                      <Briefcase className="h-4 w-4 inline mr-1" />
+                      Especialidade
+                    </Label>
+                    <Input
+                      id="specialty"
+                      value={formData.specialty}
+                      onChange={(e) =>
+                        setFormData({ ...formData, specialty: e.target.value })
+                      }
+                      placeholder="Ex: Cortes modernos, Barbas, etc."
+                    />
+                  </div>
+                )}
+
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">Endereço</h4>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label htmlFor="address">Rua/Avenida</Label>
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) =>
+                          setFormData({ ...formData, address: e.target.value })
+                        }
+                        placeholder="Rua exemplo, 123"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="city">Cidade</Label>
+                        <Input
+                          id="city"
+                          value={formData.city}
+                          onChange={(e) =>
+                            setFormData({ ...formData, city: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="state">Estado</Label>
+                        <Input
+                          id="state"
+                          value={formData.state}
+                          onChange={(e) =>
+                            setFormData({ ...formData, state: e.target.value })
+                          }
+                          maxLength={2}
+                          placeholder="SP"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="zipCode">CEP</Label>
+                        <Input
+                          id="zipCode"
+                          value={formData.zipCode}
+                          onChange={(e) =>
+                            setFormData({ ...formData, zipCode: e.target.value })
+                          }
+                          placeholder="00000-000"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full">
+                  Salvar Alterações
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Perfil de Barbeiro (apenas para Admin) */}
+          {isAdmin && (
+            <Card className="border-2 border-blue-200">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <Scissors className="h-5 w-5 mr-2 text-blue-600" />
+                      Perfil de Barbeiro
+                    </CardTitle>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Ative para usar o sistema também como barbeiro
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={barberProfile.enabled ? "default" : "outline"}
+                    onClick={toggleBarberProfile}
+                  >
+                    {barberProfile.enabled ? 'Ativado' : 'Ativar'}
+                  </Button>
+                </div>
+              </CardHeader>
+              {barberProfile.enabled && (
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    ✅ Você está ativo como barbeiro e pode receber agendamentos.
+                  </p>
+                </CardContent>
+              )}
+            </Card>
+          )}
+        </div>
+
+        {/* Stats */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Estatísticas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-100 p-3 rounded-lg">
+                  <Award className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Serviços Realizados</p>
+                  <p className="text-xl font-bold">{barberAppointments.length}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <div className="bg-green-100 p-3 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Faturamento Gerado</p>
+                  <p className="text-xl font-bold">R$ {totalRevenue.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <div className="bg-yellow-100 p-3 rounded-lg">
+                  <Star className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Avaliação Média</p>
+                  <p className="text-xl font-bold">4.8</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-100 p-3 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Serviço Mais Popular</p>
+                  <p className="text-sm font-semibold">{mostPopularService}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-50 to-purple-50">
+            <CardHeader>
+              <CardTitle className="text-sm">Dica Profissional</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600">
+                Mantenha seu perfil sempre atualizado para que os clientes possam conhecer melhor você e seus serviços!
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default Profile
