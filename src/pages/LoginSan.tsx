@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useSupabaseAuthStore } from '../store/supabaseAuthStore'
-import { Scissors, Star, Clock, Shield, MessageCircle, Eye, EyeOff, CheckCircle2, ArrowRight, Zap, Check, CalendarDays, Users, TrendingUp } from 'lucide-react'
+import { Scissors, Star, Shield, MessageCircle, Eye, EyeOff, ArrowRight, Zap, Check, CalendarDays, Users, TrendingUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
