@@ -458,7 +458,7 @@ const LoginPage = () => {
                       <p className="text-xs font-bold" style={{ color: brandColors.orange }}>Fade Premium</p>
                    </div>
                    <div className="w-16 h-16 rounded-xl overflow-hidden border-2" style={{ borderColor: brandColors.orange }}>
-                      <img src="https://images.unsplash.com/photo-1583713915124-7ee96d747209?w=200&h=200&fit=crop" className="w-full h-full object-cover" alt="Tiago" />
+                      <img src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=200&h=200&fit=crop" className="w-full h-full object-cover" alt="Tiago" />
                    </div>
                 </div>
              </div>
