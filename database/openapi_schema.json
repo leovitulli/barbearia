@@ -1,0 +1,270 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "San Patricio Barbearia API",
+    "description": "API para agendamento de serviços da Barbearia San Patricio pelo WhatsApp.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://kzlilaflnnbepacccijx.supabase.co/rest/v1"
+    }
+  ],
+  "paths": {
+    "/rpc/bot_v1_get_client_state": {
+      "post": {
+        "summary": "Identificar Cliente",
+        "description": "Identifica se o cliente já existe pelo número de telefone ou JID do WhatsApp.",
+        "operationId": "IdentifyClient",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "p_phone": {
+                    "type": "string",
+                    "description": "O número de telefone do cliente (sender_phone)"
+                  },
+                  "p_whatsapp_jid": {
+                    "type": "string",
+                    "description": "O ID do WhatsApp do cliente (sender_id)"
+                  }
+                },
+                "required": ["p_phone"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado do cliente retornado com sucesso."
+          }
+        }
+      }
+    },
+    "/rpc/bot_v1_create_appointment": {
+      "post": {
+        "summary": "Criar Agendamento",
+        "description": "Cria um novo agendamento para o cliente.",
+        "operationId": "CreateAppointment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "p_phone": {
+                    "type": "string"
+                  },
+                  "p_barber_name": {
+                    "type": "string"
+                  },
+                  "p_service_name": {
+                    "type": "string"
+                  },
+                  "p_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Formato YYYY-MM-DD"
+                  },
+                  "p_time": {
+                    "type": "string",
+                    "format": "time",
+                    "description": "Formato HH:MM:SS"
+                  },
+                  "p_client_name": {
+                    "type": "string"
+                  },
+                  "p_whatsapp_jid": {
+                    "type": "string"
+                  },
+                  "p_channel": {
+                    "type": "string",
+                    "default": "whatsapp"
+                  }
+                },
+                "required": ["p_phone", "p_service_name", "p_date", "p_time"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agendamento criado."
+          }
+        }
+      }
+    },
+    "/rpc/bot_v1_get_available_slots": {
+      "post": {
+        "summary": "Consultar Horários Livres",
+        "description": "Retorna uma lista dos horários disponíveis para agendamento.",
+        "operationId": "GetAvailableSlots",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "p_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "p_barber_name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["p_date"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lista de horários."
+          }
+        }
+      }
+    },
+    "/rpc/bot_v1_cancel_appointment": {
+      "post": {
+        "summary": "Cancelar Agendamento",
+        "description": "Cancela o próximo agendamento ativo do cliente baseado no telefone.",
+        "operationId": "CancelAppointment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "p_phone": {
+                    "type": "string"
+                  },
+                  "p_whatsapp_jid": {
+                    "type": "string"
+                  }
+                },
+                "required": ["p_phone"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agendamento cancelado."
+          }
+        }
+      }
+    },
+    "/rpc/bot_v1_list_services": {
+      "post": {
+        "summary": "Listar Serviços",
+        "description": "Retorna os serviços oferecidos e seus preços.",
+        "operationId": "ListServices",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lista de serviços."
+          }
+        }
+      }
+    },
+    "/rpc/bot_v1_list_staff": {
+      "post": {
+        "summary": "Listar Barbeiros",
+        "description": "Retorna os barbeiros ativos na barbearia.",
+        "operationId": "ListStaff",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lista de barbeiros."
+          }
+        }
+      }
+    },
+    "/rpc/bot_v1_reschedule_appointment": {
+      "post": {
+        "summary": "Remarcar Agendamento",
+        "description": "Altera a data/hora do agendamento de um cliente.",
+        "operationId": "RescheduleAppointment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "p_phone": {
+                    "type": "string"
+                  },
+                  "p_new_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "p_new_time": {
+                    "type": "string",
+                    "format": "time"
+                  },
+                  "p_barber_name": {
+                    "type": "string"
+                  },
+                  "p_whatsapp_jid": {
+                    "type": "string"
+                  }
+                },
+                "required": ["p_phone", "p_new_date", "p_new_time"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agendamento remarcado."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "apikey"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": [],
+      "BearerAuth": []
+    }
+  ]
+}

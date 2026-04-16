@@ -1,0 +1,145 @@
+openapi: 3.0.0
+info:
+  title: San Patricio Barbearia API
+  description: API de agendamento de serviços da Barbearia San Patricio no WhatsApp.
+  version: 1.0.0
+servers:
+  - url: https://kzlilaflnnbepacccijx.supabase.co/rest/v1
+paths:
+  /rpc/bot_v1_get_client_state:
+    post:
+      summary: Identificar Cliente
+      operationId: identifyClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_phone:
+                  type: string
+                p_whatsapp_jid:
+                  type: string
+              required:
+                - p_phone
+      responses:
+        "200":
+          description: Sucesso
+  /rpc/bot_v1_create_appointment:
+    post:
+      summary: Criar Agendamento
+      operationId: createAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_phone:
+                  type: string
+                p_barber_name:
+                  type: string
+                p_service_name:
+                  type: string
+                p_date:
+                  type: string
+                p_time:
+                  type: string
+                p_client_name:
+                  type: string
+                p_whatsapp_jid:
+                  type: string
+                p_channel:
+                  type: string
+              required:
+                - p_phone
+                - p_service_name
+                - p_date
+                - p_time
+      responses:
+        "200":
+          description: Sucesso
+  /rpc/bot_v1_get_available_slots:
+    post:
+      summary: Consultar Horários
+      operationId: getAvailableSlots
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_date:
+                  type: string
+                p_barber_name:
+                  type: string
+              required:
+                - p_date
+      responses:
+        "200":
+          description: Sucesso
+  /rpc/bot_v1_cancel_appointment:
+    post:
+      summary: Cancelar Agendamento
+      operationId: cancelAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_phone:
+                  type: string
+                p_whatsapp_jid:
+                  type: string
+              required:
+                - p_phone
+      responses:
+        "200":
+          description: Sucesso
+  /rpc/bot_v1_list_services:
+    post:
+      summary: Listar Serviços
+      operationId: listServices
+      responses:
+        "200":
+          description: Sucesso
+  /rpc/bot_v1_list_staff:
+    post:
+      summary: Listar Barbeiros
+      operationId: listStaff
+      responses:
+        "200":
+          description: Sucesso
+  /rpc/bot_v1_reschedule_appointment:
+    post:
+      summary: Remarcar Agendamento
+      operationId: rescheduleAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_phone:
+                  type: string
+                p_new_date:
+                  type: string
+                p_new_time:
+                  type: string
+                p_barber_name:
+                  type: string
+                p_whatsapp_jid:
+                  type: string
+              required:
+                - p_phone
+                - p_new_date
+                - p_new_time
+      responses:
+        "200":
+          description: Sucesso
